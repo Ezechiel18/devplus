@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Où ouvrir un fast-food en Pays de la Loire et en Bretagne ?</title>
+<meta name="description" content="Carte interactive de 39 943 zones de 500 m classées selon leur potentiel pour ouvrir un restaurant rapide en Pays de la Loire et en Bretagne.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+<div class="page">
+
+<header class="topbar">
+  <nav aria-label="Aide" class="topbar-nav">
+    <button type="button" class="btn" id="btn-aide">Aide</button>
+    <button type="button" class="btn btn-dark" id="btn-guide">Guide d’utilisation</button>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-text">
+    <h1>Où ouvrir un fast-food en Pays de la Loire et en Bretagne ?</h1>
+    <p><span id="n-elig">39 943</span> zones de 500 m sur 500 m, classées selon l’accès routier, le pouvoir d’achat, la population et la concurrence.</p>
+  </div>
+  <div class="mode-box">
+    <div role="group" aria-label="Mode de lecture" class="mode-switch">
+      <button type="button" id="btn-ref" aria-pressed="true">Analyse de référence</button>
+      <button type="button" id="btn-sim" aria-pressed="false">Simulation</button>
+    </div>
+    <span class="mode-hint" id="mode-hint-ref">Le classement de l’étude, avec des poids fixes.</span>
+    <button type="button" class="link-sim" id="mode-hint-sim" hidden>Revenir à l’analyse de référence</button>
+  </div>
+</section>
+
+<div role="status" class="sim-banner" id="sim-banner" hidden>Vous êtes en simulation : la carte et le classement suivent vos priorités, réglables à gauche, à l’étape 2.</div>
+
+<div class="layout">
+
+  <aside aria-label="Réglages" class="col-left">
+    <section class="card">
+      <h2><span class="step">1.</span>Où cherchez-vous ?</h2>
+      <label class="field">Département
+        <select id="sel-dept"></select>
+      </label>
+      <form class="field" id="form-search" role="search">
+        <label for="inp-search">Commune ou adresse</label>
+        <div class="search-row">
+          <input type="search" id="inp-search" placeholder="par exemple Angers" list="list-communes" autocomplete="off">
+          <button type="submit" class="btn btn-small">Chercher</button>
+        </div>
+        <datalist id="list-communes"></datalist>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">2.</span>Ce qui compte dans le classement</h2>
+      <div id="weights-ref" class="weights-ref"></div>
+      <div id="weights-sim" class="weights-sim" hidden>
+        <p class="muted small">Donnez de 0 à 100 l’importance de chaque critère.</p>
+        <div id="sliders"></div>
+        <p class="warn small" id="warn-zero" hidden>Donnez de l’importance à au moins un critère : en attendant, le classement de référence reste affiché.</p>
+        <button type="button" class="btn btn-small" id="btn-reset">Repartir des poids de référence</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">3.</span>Le profil de zone recherché</h2>
+      <div id="profile"></div>
+      <fieldset class="classes">
+        <legend>Classes affichées sur la carte</legend>
+        <div id="class-toggles"></div>
+      </fieldset>
+    </section>
+  </aside>
+
+  <div class="col-center">
+    <section aria-label="Carte" class="card card-map" id="map-card">
+      <div class="map-head">
+        <h2>Carte des zones</h2>
+        <div class="map-head-right">
+          <span class="muted small hide-full">Cliquez sur une zone pour afficher sa fiche</span>
+          <button type="button" class="btn btn-small" id="btn-full" aria-pressed="false">
+            <svg width="14" height="14" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 7 V2 H7 M11 2 H16 V7 M16 11 V16 H11 M7 16 H2 V11"></path></svg>
+            <span id="btn-full-label">Agrandir la carte</span>
+          </button>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <div id="map" role="region" aria-label="Carte interactive des zones"></div>
+        <div class="basemap" id="basemap" role="group" aria-label="Fond de carte">
+          <button type="button" data-fond="ign" aria-pressed="true">Plan IGN</button>
+          <button type="button" data-fond="ortho" aria-pressed="false">Photos aériennes</button>
+        </div>
+        <div class="map-loading" id="map-loading">Chargement des zones…</div>
+        <div class="full-sel" id="full-sel" hidden></div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section aria-label="Meilleures zones" class="card">
+      <div class="top-head">
+        <h2 id="top-title">Meilleures zones de l’analyse de référence</h2>
+        <label class="check"><input type="checkbox" id="chk-oneper" checked>Une seule zone par commune</label>
+      </div>
+      <div class="top-grid" id="top-list"></div>
+      <p class="muted small" id="top-empty" hidden>Aucune zone ne correspond à vos réglages. Assouplissez le profil recherché à l’étape 3.</p>
+    </section>
+  </div>
+
+  <aside aria-label="Fiche de la zone" class="card col-right" id="fiche">
+    <h2>Fiche de la zone</h2>
+    <div id="fiche-body"><p class="muted">Cliquez sur une zone de la carte ou de la liste des meilleures zones : sa fiche s’affiche ici.</p></div>
+  </aside>
+</div>
+
+<section aria-label="Télécharger" class="band">
+  <div>
+    <h2>Télécharger votre sélection</h2>
+    <span id="band-text">Zones affichées, avec une notice : sources, date et réglages utilisés.</span>
+  </div>
+  <div class="band-btns">
+    <label class="band-check"><input type="checkbox" id="chk-all">Toutes les zones</label>
+    <button type="button" class="btn btn-white" id="btn-xlsx">Tableau (Excel)</button>
+    <button type="button" class="btn btn-outline-white" id="btn-geo">Données cartographiques</button>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Sources : IGN Géoplateforme, Géoportail de l’urbanisme, INPN, Géorisques, API Recherche d’entreprises (base SIRENE), Insee Filosofi 2021. Fonds de carte : IGN (Plan IGN, photographies aériennes). Données publiques traitées en novembre 2026.</p>
+  <p>Cet outil aide à repérer des zones à étudier : il ne remplace ni une visite sur place, ni l’étude du local commercial (surface, loyer, bail).</p>
+  <p class="signature">Réalisée par Ezéchiel Ametovena, <a href="https://www.linkedin.com/in/ez%C3%A9chiel-ametovena-5a48a1196/" target="_blank" rel="noopener">LinkedIn</a></p>
+</footer>
+</div>
+
+<!-- Fenêtre : alternatives -->
+<div class="modal" id="modal-alt" role="dialog" aria-modal="true" aria-labelledby="alt-title" hidden>
+  <div class="modal-box modal-wide">
+    <div class="modal-head">
+      <div><h2 id="alt-title">Trouver de meilleures alternatives</h2><span class="muted small" id="alt-sub"></span></div>
+      <button type="button" class="btn" data-close>Fermer</button>
+    </div>
+    <div id="alt-body"></div>
+  </div>
+</div>
+
+<!-- Fenêtre : aperçu de la fiche -->
+<div class="modal" id="modal-pdf" role="dialog" aria-modal="true" aria-label="Aperçu de la fiche" hidden>
+  <div class="modal-pdf-wrap">
+    <div class="modal-pdf-actions">
+      <button type="button" class="btn btn-dark" id="btn-print">Télécharger en PDF</button>
+      <button type="button" class="btn" data-close>Fermer</button>
+    </div>
+    <article id="pdf-article" class="pdf-article"></article>
+  </div>
+</div>
+
+<!-- Fenêtre : guide (texte du document de méthode, rubriques 1 à 10) -->
+<div class="modal" id="modal-guide" role="dialog" aria-modal="true" aria-labelledby="guide-title" hidden>
+  <article class="modal-box guide">
+    <div class="modal-head"><h2 id="guide-title">Guide d’utilisation</h2><button type="button" class="btn" data-close>Fermer</button></div>
+    <section><h3>1. À quoi sert l’outil</h3><p>L’outil classe 39 943 zones de 500 m × 500 m en Pays de la Loire et en Bretagne selon leur potentiel pour ouvrir un restaurant rapide. Il indique où chercher en priorité. Il ne remplace ni une visite sur place, ni l’étude du local commercial (surface, loyer), ni l’avis d’un professionnel (bail, urbanisme, financement).</p></section>
+    <section><h3>2. Quelles zones sont étudiées</h3><p>Une zone est retenue si elle touche une zone urbaine ou à urbaniser du plan local d’urbanisme, et si elle se trouve hors site Natura 2000 et hors zone inondable (débordement de cours d’eau, crue centennale). Les communes sans plan local d’urbanisme ne sont pas retenues. La submersion marine n’a pas pu être prise en compte.</p></section>
+    <section><h3>3. Les quatre critères</h3>
+      <table class="guide-table">
+        <thead><tr><th>Critère</th><th>Ce qu’il mesure</th><th>Niveaux</th></tr></thead>
+        <tbody>
+          <tr><td>Accès routier</td><td>distance à la route principale la plus proche</td><td>très accessible (moins de 0,5 km), accessible (moins de 1,5 km), peu accessible (moins de 3 km), isolée</td></tr>
+          <tr><td>Pouvoir d’achat</td><td>niveau de vie moyen des habitants (Insee)</td><td>modeste (moins de 80 % de la médiane, 24 409 €), intermédiaire, aisé (plus de 120 %)</td></tr>
+          <tr><td>Population</td><td>nombre d’habitants au km²</td><td>peu dense (moins de 300), intermédiaire, dense (plus de 1 500)</td></tr>
+          <tr><td>Concurrence</td><td>fast-foods déjà installés à moins de 2 km : plus ils sont nombreux, grands et proches, plus la concurrence est forte</td><td>aucune, faible (1 à 5), modérée (6 à 20), forte (plus de 20)</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section><h3>4. Deux façons de lire la carte</h3>
+      <p><strong>Analyse de référence.</strong> Le classement établi par l’étude, avec des poids fixes : accès routier 35 %, pouvoir d’achat 30 %, population 20 %, concurrence 15 %. C’est le résultat de référence.</p>
+      <p><strong>Simulation.</strong> Vous réglez l’importance de chaque critère de 0 à 100. L’outil en déduit les poids et recalcule le classement et la carte. Un bandeau rappelle que vous êtes en simulation, et le bouton « Revenir à l’analyse de référence » rétablit le classement de l’étude.</p>
+      <p>Exemple : si la concurrence vous importe le plus, mettez-la à 100 et les autres critères plus bas. Les zones sans concurrent remontent dans le classement.</p>
+      <p>Dans la fiche d’une zone, la simulation affiche les deux rangs. Une zone est dite <strong>robuste</strong> si son rang change peu (moins de 5 % du classement) : elle reste bien placée quelles que soient les priorités. Sinon, elle est <strong>sensible aux critères</strong>.</p>
+    </section>
+    <section><h3>5. Les classes</h3>
+      <table class="guide-table">
+        <thead><tr><th>Classe</th><th>Part des zones</th></tr></thead>
+        <tbody>
+          <tr><td>Prioritaire</td><td>le 1 % le mieux classé</td></tr>
+          <tr><td>Très favorable</td><td>de 1 à 5 %</td></tr>
+          <tr><td>Favorable</td><td>de 5 à 20 %</td></tr>
+          <tr><td>Moyen</td><td>de 20 à 50 %</td></tr>
+          <tr><td>Peu favorable</td><td>la moitié la moins bien classée</td></tr>
+        </tbody>
+      </table>
+      <p>Les classes comparent les zones entre elles. Une zone « prioritaire » est parmi les meilleures du territoire, ce n’est pas une garantie de réussite.</p>
+    </section>
+    <section><h3>6. Lire la fiche d’une zone</h3><p>Cliquez sur une zone de la carte ou de la liste. La fiche indique, dans l’ordre : la commune et le département, la classe de la zone, son rang dans le classement, puis les quatre critères avec leur niveau et leur valeur réelle. Deux boutons en bas : trouver de meilleures alternatives, télécharger la fiche (PDF) pour l’imprimer ou la partager.</p></section>
+    <section><h3>7. Trouver de meilleures alternatives</h3><p>Depuis la fiche, indiquez le critère sur lequel la zone ne vous satisfait pas. L’outil cherche, à moins de 5 km, les zones qui font mieux sur ce critère sans faire moins bien sur les trois autres. Il en présente jusqu’à trois, côte à côte avec la zone de départ, avec leurs points forts et leurs points faibles. S’il n’en trouve aucune, la zone de départ est déjà un bon compromis.</p></section>
+    <section><h3>8. Choisir un territoire et un profil</h3>
+      <p><strong>Où ?</strong> Choisissez un département, ou cherchez une commune ou une adresse.</p>
+      <p><strong>Profil recherché.</strong> Pour chaque critère, indiquez le niveau minimum souhaité (par exemple : concurrence faible ou aucune). Les zones qui ne conviennent pas s’effacent de la carte et de la liste. Vous pouvez aussi masquer des classes.</p>
+      <p><strong>Meilleures zones.</strong> La liste suit vos réglages. L’option « une seule zone par commune » évite que la liste ne montre que des zones voisines.</p>
+    </section>
+    <section><h3>9. Télécharger</h3><p>Par défaut, vous téléchargez votre sélection (réglages appliqués). Une option permet de télécharger toutes les zones. Deux formats : <strong>Tableau (Excel)</strong> et <strong>Données cartographiques</strong>. Une notice est jointe à chaque téléchargement : sources, date, mode (référence ou simulation) et réglages utilisés.</p></section>
+    <section><h3>10. D’où viennent les données</h3><p>IGN Géoplateforme (limites administratives, routes), Géoportail de l’urbanisme (plans locaux d’urbanisme), INPN (Natura 2000), Géorisques (zones inondables), API Recherche d’entreprises (fast-foods, base SIRENE), Insee Filosofi 2021 (population et niveau de vie). Données publiques, traitées en novembre 2026.</p></section>
+  </article>
+</div>
+
+<!-- Fenêtre : présentation à l'ouverture -->
+<div class="modal" id="modal-onb" role="dialog" aria-modal="true" aria-labelledby="onb-title" hidden>
+  <div class="modal-box onb">
+    <header class="onb-head">
+      <span class="onb-kicker">Avant de commencer</span>
+      <h2 id="onb-title">Où ouvrir un fast-food en Pays de la Loire et en Bretagne ?</h2>
+      <p>Un outil d’aide à la décision : il classe les zones des deux régions selon leur potentiel pour ouvrir un restaurant rapide.</p>
+    </header>
+
+    <div class="onb-funnel" aria-label="Les étapes de l’étude">
+      <div class="onb-fig"><span class="onb-num">242 514</span><span class="onb-lbl">zones de 500 m sur 500 m analysées</span></div>
+      <span class="onb-arrow" aria-hidden="true">→</span>
+      <div class="onb-fig"><span class="onb-num">39 943</span><span class="onb-lbl">retenues : constructibles, hors site naturel protégé et hors zone inondable</span></div>
+      <span class="onb-arrow" aria-hidden="true">→</span>
+      <div class="onb-fig"><span class="onb-num onb-num-top">399</span><span class="onb-lbl">prioritaires : le 1 % le mieux classé</span></div>
+    </div>
+
+    <div class="onb-cols">
+      <section>
+        <h3>Deux façons de lire la carte</h3>
+        <p><strong>Analyse de référence</strong> : le classement de l’étude, fondé sur quatre critères.</p>
+        <div class="wbar" role="img" aria-label="Poids : accès routier 35 %, pouvoir d’achat 30 %, population 20 %, concurrence 15 %">
+          <span style="flex:35;background:#14201F">35 %</span>
+          <span style="flex:30;background:#3C4846">30 %</span>
+          <span style="flex:20;background:#6B7775">20 %</span>
+          <span style="flex:15;background:#A3ADAA;color:#14201F">15 %</span>
+        </div>
+        <div class="wbar-lbl" aria-hidden="true">
+          <span style="flex:35">Accès routier</span><span style="flex:30">Pouvoir d’achat</span><span style="flex:20">Population</span><span style="flex:15">Concurrence</span>
+        </div>
+        <p><strong>Simulation</strong> : vous réglez vous-même l’importance de chaque critère, et la carte se recalcule.</p>
+      </section>
+      <section>
+        <h3>Comment s’en servir</h3>
+        <ol class="onb-steps">
+          <li><span>1</span>Choisissez un territoire et le profil de zone recherché.</li>
+          <li><span>2</span>Cliquez sur une zone pour afficher sa fiche.</li>
+          <li><span>3</span>Cherchez de meilleures alternatives, puis téléchargez votre sélection.</li>
+        </ol>
+      </section>
+    </div>
+
+    <div class="onb-actions">
+      <button type="button" class="btn btn-dark btn-big" data-close>Commencer</button>
+      <button type="button" class="btn btn-link" id="btn-onb-guide">Lire le guide complet</button>
+    </div>
+    <p class="onb-signature">Réalisée par Ezéchiel Ametovena, <a href="https://www.linkedin.com/in/ez%C3%A9chiel-ametovena-5a48a1196/" target="_blank" rel="noopener">LinkedIn</a></p>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="data/zones.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
