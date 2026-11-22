@@ -18,22 +18,22 @@
   var NAMES = { acc: 'Accès routier', pa: 'Pouvoir d’achat', dens: 'Population', conc: 'Concurrence' };
   var MEAS = { acc: 'distance à la route principale', pa: 'niveau de vie moyen des habitants', dens: 'habitants au km²', conc: 'fast-foods déjà installés à moins de 2 km' };
   var LV = {
-    acc: ['Isolée', 'Peu accessible', 'Accessible', 'Très accessible'],
-    pa: ['Modeste', 'Intermédiaire', 'Aisé'],
-    dens: ['Peu dense', 'Intermédiaire', 'Dense'],
-    conc: ['Concurrence forte', 'Concurrence modérée', 'Concurrence faible', 'Aucune concurrence']
+    acc: ['Faible', 'Moyen', 'Bon', 'Très bon'],
+    pa: ['Faible', 'Moyen', 'Élevé'],
+    dens: ['Faible', 'Moyenne', 'Élevée'],
+    conc: ['Élevée', 'Moyenne', 'Faible', 'Nulle']
   };
   // Libellés courts, quand le mot « Concurrence » est déjà écrit à côté (boutons des alternatives)
-  var LV_SHORT = { conc: ['forte', 'modérée', 'faible', 'aucune'] };
-  function lvShort(k, l) { return LV_SHORT[k] ? LV_SHORT[k][l] : LV[k][l].toLowerCase(); }
+  function lvShort(k, l) { return LV[k][l].toLowerCase(); }
   var REFW = { acc: 35, pa: 30, dens: 20, conc: 15 };
   var PROF = {
-    acc: [['Peu importe', 0], ['Accessible ou mieux', 2], ['Très accessible', 3]],
-    pa: [['Peu importe', 0], ['Intermédiaire ou mieux', 1], ['Aisé', 2]],
-    dens: [['Peu importe', 0], ['Intermédiaire ou plus', 1], ['Dense', 2]],
-    conc: [['Peu importe', 0], ['Faible ou aucune', 2], ['Aucune', 3]]
+    // Chaque option correspond à un seul niveau (null = toutes les zones)
+    acc: [['Toutes', null], ['Faible', 0], ['Moyen', 1], ['Bon', 2], ['Très bon', 3]],
+    pa: [['Tous', null], ['Faible', 0], ['Moyen', 1], ['Élevé', 2]],
+    dens: [['Toutes', null], ['Faible', 0], ['Moyenne', 1], ['Élevée', 2]],
+    conc: [['Toutes', null], ['Nulle', 3], ['Faible', 2], ['Moyenne', 1], ['Élevée', 0]]
   };
-  var STRONG = { acc: 'très accessible', pa: 'pouvoir d’achat élevé', dens: 'population dense', conc: 'sans concurrent proche' };
+  var STRONG = { acc: 'très bon accès routier', pa: 'pouvoir d’achat élevé', dens: 'densité élevée', conc: 'concurrence nulle' };
   var DEPTS = { '22': 'Côtes-d’Armor', '29': 'Finistère', '35': 'Ille-et-Vilaine', '44': 'Loire-Atlantique', '49': 'Maine-et-Loire', '53': 'Mayenne', '56': 'Morbihan', '72': 'Sarthe', '85': 'Vendée' };
   var DEPT_ORDER = ['22', '29', '35', '44', '49', '53', '56', '72', '85'];
   var ALT_RADIUS = 5000; // mètres
@@ -98,15 +98,18 @@
   }
   function valueText(z, k) {
     if (k === 'acc') return z.dr < 50 ? 'route principale à moins de 50 m' : z.dr < 1000 ? 'route principale à ' + fmt(z.dr) + ' m' : 'route principale à ' + fr1(z.dr / 1000) + ' km';
-    if (k === 'pa') return z.nv === null ? 'donnée non diffusée par l’Insee (valeur médiane utilisée)' : fmt(z.nv) + ' € par an et par habitant';
+    if (k === 'pa') return z.nv === null ? 'aucun habitant : valeur médiane de l’étude (' + fmt(MED) + ' €) utilisée dans le score' : fmt(z.nv) + ' € par an et par habitant';
     if (k === 'dens') return fmt(z.po) + ' ' + plural(Math.round(z.po), 'habitant', 'habitants') + ' dans la zone (' + fmt(z.de) + ' au km²)';
     return z.nc === 0 ? 'aucun fast-food à moins de 2 km' : z.nc + ' ' + plural(z.nc, 'fast-food', 'fast-foods') + ' à moins de 2 km';
   }
-  function quality(z, k) { var n = LV[k].length, l = z.lv[k]; return l === n - 1 ? 'good' : l === 0 ? 'weak' : 'mid'; }
+  // Zones sans habitant : pas de niveau de vie, on l'affiche tel quel (le score utilise la médiane)
+  function noPa(z, k) { return k === 'pa' && z.nv === null; }
+  function lvLabel(z, k) { return noPa(z, k) ? 'Sans habitant' : LV[k][z.lv[k]]; }
+  function quality(z, k) { if (noPa(z, k)) return 'mid'; var n = LV[k].length, l = z.lv[k]; return l === n - 1 ? 'good' : l === 0 ? 'weak' : 'mid'; }
   function why(z) {
     var s = [];
     KEYS.forEach(function (k) { if (z.lv[k] === LV[k].length - 1 && !(k === 'pa' && z.nv === null)) s.push(STRONG[k]); });
-    if (z.lv.conc === 2) s.push('peu de concurrence');
+    if (z.lv.conc === 2) s.push('concurrence faible');
     if (!s.length) return 'Profil équilibré';
     var t = s.slice(0, 2).join(', ');
     return t.charAt(0).toUpperCase() + t.slice(1);
@@ -131,7 +134,7 @@
   function visibleOf(z) {
     if (state.hidden[clsOf(z)]) return false;
     if (state.dept !== 'all' && z.dp !== state.dept) return false;
-    for (var j = 0; j < 4; j++) { var k = KEYS[j]; if (z.lv[k] < PROF[k][state.prof[k]][1]) return false; }
+    for (var j = 0; j < 4; j++) { var k = KEYS[j], want = PROF[k][state.prof[k]][1]; if (want !== null && (z.lv[k] !== want || noPa(z, k))) return false; }
     return true;
   }
 
@@ -153,6 +156,8 @@
     var sim = state.mode === 'sim';
     $('btn-ref').setAttribute('aria-pressed', String(!sim));
     $('btn-sim').setAttribute('aria-pressed', String(sim));
+    $('sb-ref').setAttribute('aria-pressed', String(!sim));
+    $('sb-sim').setAttribute('aria-pressed', String(sim));
     $('mode-hint-ref').hidden = sim;
     $('mode-hint-sim').hidden = !sim;
     $('sim-banner').hidden = !sim;
@@ -202,7 +207,7 @@
   function critHtml(z) {
     return KEYS.map(function (k) {
       return '<div class="crit"><div class="crit-text"><span class="crit-name">' + NAMES[k] + '</span><span class="crit-val">' + esc(valueText(z, k)) + '</span></div>' +
-        '<span class="pill ' + quality(z, k) + '">' + LV[k][z.lv[k]] + '</span></div>';
+        '<span class="pill ' + quality(z, k) + '">' + lvLabel(z, k) + '</span></div>';
     }).join('');
   }
 
@@ -324,6 +329,8 @@
 
     $('btn-ref').onclick = function () { state.mode = 'ref'; apply(); };
     $('btn-sim').onclick = function () { state.mode = 'sim'; computeSim(); apply(); };
+    $('sb-ref').onclick = $('btn-ref').onclick;
+    $('sb-sim').onclick = $('btn-sim').onclick;
     $('mode-hint-sim').onclick = function () { state.mode = 'ref'; apply(); };
     $('chk-oneper').onchange = function (e) { state.onePer = e.target.checked; renderAll(); };
     $('chk-all').onchange = function () { renderBand(visibleList()); };
@@ -436,7 +443,7 @@
     var h = '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:15px;font-weight:500">Sur quel critère cette zone ne vous satisfait-elle pas ?</span><div class="alt-choices">' +
       KEYS.map(function (k) {
         var on = state.alt === k;
-        return '<button type="button" class="btn" data-alt="' + k + '" aria-pressed="' + on + '">' + NAMES[k] + (on ? '' : ' : ' + lvShort(k, z.lv[k])) + '</button>';
+        return '<button type="button" class="btn" data-alt="' + k + '" aria-pressed="' + on + '">' + NAMES[k] + (on ? '' : ' : ' + lvLabel(z, k).toLowerCase()) + '</button>';
       }).join('') + '</div></div>';
     if (state.alt && state.alt !== 'choose') {
       var crit = state.alt;
@@ -463,7 +470,7 @@
     return '<div class="alt-col' + (d === null ? ' start' : '') + '"><div style="display:flex;flex-direction:column;gap:2px"><span class="tag">' + tag + '</span><span class="name">' + esc(z.c) + '</span>' +
       '<span class="muted small">Rang ' + fmt(rankOf(z)) + ', ' + (d === null ? 'zone de départ' : 'à ' + fr1(d / 1000) + ' km') + '</span></div>' +
       '<span style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500"><span class="sw sw-s" style="background:' + COLORS[k] + '"></span>' + CLS[k] + '</span>' +
-      KEYS.map(function (kk) { return '<div class="alt-k"><span>' + NAMES[kk] + '</span><span' + (d !== null && kk === crit ? ' class="better"' : '') + '>' + LV[kk][z.lv[kk]] + '</span></div>'; }).join('') +
+      KEYS.map(function (kk) { return '<div class="alt-k"><span>' + NAMES[kk] + '</span><span' + (d !== null && kk === crit ? ' class="better"' : '') + '>' + lvLabel(z, kk) + '</span></div>'; }).join('') +
       '<div class="alt-ff"><span>Points forts : ' + (f.length ? f.join(', ') : 'aucun') + '</span><span>Points faibles : ' + (w.length ? w.join(', ') : 'aucun') + '</span></div>' +
       (d !== null ? '<button type="button" class="btn btn-small" data-pick="' + z.id + '">Afficher sa fiche</button>' : '') + '</div>';
   }
@@ -488,7 +495,7 @@
       (img ? '<img class="pdf-map" src="' + img + '" alt="Carte de situation de la zone">' : '') +
       '<p>' + VERDICT[k] + ' Rang ' + fmt(z.r) + ' sur ' + fmt(N) + ' zones dans l’analyse de référence.</p>' +
       '<table class="pdf-table"><thead><tr><th>Critère</th><th>Niveau</th><th>Valeur</th></tr></thead><tbody>' +
-      KEYS.map(function (kk) { return '<tr><td>' + NAMES[kk] + '</td><td style="font-weight:500">' + LV[kk][z.lv[kk]] + '</td><td>' + esc(valueText(z, kk)) + '</td></tr>'; }).join('') +
+      KEYS.map(function (kk) { return '<tr><td>' + NAMES[kk] + '</td><td style="font-weight:500">' + lvLabel(z, kk) + '</td><td>' + esc(valueText(z, kk)) + '</td></tr>'; }).join('') +
       '</tbody></table>' +
       '<p class="note">' + modeTxt + ' Cette fiche aide à repérer une zone ; elle ne remplace ni une visite sur place, ni l’étude du local commercial (surface, loyer, bail).</p>' +
       '<p class="src">Sources : IGN, Géoportail de l’urbanisme, INPN, Géorisques, base SIRENE, Insee Filosofi 2021. Fond de carte : ' + FOND_NOMS[fondActif] + '. Fiche éditée le ' + date + '.</p>';
@@ -553,7 +560,7 @@
       'Score de référence (sur 100)': Math.round(z.s * 1000) / 10,
       'Score de simulation (sur 100)': isSim() ? Math.round(z.ss * 1000) / 10 : '',
       'Distance à la route principale (m)': z.dr,
-      'Niveau de vie moyen (€ par an)': z.nv === null ? 'non diffusé' : z.nv,
+      'Niveau de vie moyen (€ par an)': z.nv === null ? 'sans habitant' : z.nv,
       'Densité (hab. au km²)': z.de,
       'Population de la zone': z.po,
       'Fast-foods à moins de 2 km': z.nc,
@@ -714,6 +721,23 @@
   }
 
   $('btn-guide').onclick = function () { openModal('modal-guide'); };
+  $('sb-guide').onclick = function () { openModal('modal-guide'); };
+  $('sb-aide').onclick = function () { openModal('modal-onb'); };
+
+  // Barre fine : visible seulement quand l'en-tête (titre et modes) n'est plus à l'écran
+  (function () {
+    var bar = $('stickybar'), hero = document.querySelector('.hero');
+    function setBar(show) {
+      bar.classList.toggle('show', show);
+      bar.setAttribute('aria-hidden', String(!show));
+      Array.prototype.forEach.call(bar.querySelectorAll('button'), function (b) { b.tabIndex = show ? 0 : -1; });
+    }
+    if ('IntersectionObserver' in window && hero) {
+      new IntersectionObserver(function (entries) { setBar(!entries[0].isIntersecting); }).observe(hero);
+    } else {
+      window.addEventListener('scroll', function () { setBar(window.scrollY > 260); });
+    }
+  })();
   $('btn-aide').onclick = function () { openModal('modal-onb'); };
   $('btn-onb-guide').onclick = function () { markOnbSeen(); $('modal-onb').hidden = true; openModal('modal-guide'); };
   $('btn-full').onclick = function () { setFull(!state.full); };

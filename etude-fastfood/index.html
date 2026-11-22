@@ -12,6 +12,20 @@
 <link href="css/style.css" rel="stylesheet">
 </head>
 <body>
+<!-- Barre fine, visible seulement quand l'en-tête est sorti de l'écran -->
+<div class="stickybar" id="stickybar" aria-hidden="true">
+  <div class="stickybar-in">
+    <span class="sb-title">Où ouvrir un fast-food en Pays de la Loire et en Bretagne ?</span>
+    <div class="sb-right">
+      <div role="group" aria-label="Mode de lecture" class="mode-switch sb-switch">
+        <button type="button" id="sb-ref" aria-pressed="true" tabindex="-1"><span class="sb-long">Analyse de référence</span><span class="sb-short">Référence</span></button>
+        <button type="button" id="sb-sim" aria-pressed="false" tabindex="-1">Simulation</button>
+      </div>
+      <button type="button" class="btn btn-small" id="sb-aide" tabindex="-1">Aide</button>
+      <button type="button" class="btn btn-small btn-dark" id="sb-guide" tabindex="-1"><span class="sb-long">Guide d’utilisation</span><span class="sb-short">Guide</span></button>
+    </div>
+  </div>
+</div>
 <div class="page">
 
 <header class="topbar">
@@ -36,7 +50,7 @@
   </div>
 </section>
 
-<div role="status" class="sim-banner" id="sim-banner" hidden>Vous êtes en simulation : la carte et le classement suivent vos priorités, réglables à gauche, à l’étape 2.</div>
+<div role="status" class="sim-banner" id="sim-banner" hidden>Vous êtes en simulation : la carte et le classement suivent vos priorités, réglables à l’étape 2.</div>
 
 <div class="layout">
 
@@ -101,7 +115,7 @@
       <div class="legend" id="legend"></div>
     </section>
 
-    <section aria-label="Meilleures zones" class="card">
+    <section aria-label="Meilleures zones" class="card" id="top-card">
       <div class="top-head">
         <h2 id="top-title">Meilleures zones de l’analyse de référence</h2>
         <label class="check"><input type="checkbox" id="chk-oneper" checked>Une seule zone par commune</label>
@@ -168,18 +182,19 @@
       <table class="guide-table">
         <thead><tr><th>Critère</th><th>Ce qu’il mesure</th><th>Niveaux</th></tr></thead>
         <tbody>
-          <tr><td>Accès routier</td><td>distance à la route principale la plus proche</td><td>très accessible (moins de 0,5 km), accessible (moins de 1,5 km), peu accessible (moins de 3 km), isolée</td></tr>
-          <tr><td>Pouvoir d’achat</td><td>niveau de vie moyen des habitants (Insee)</td><td>modeste (moins de 80 % de la médiane, 24 409 €), intermédiaire, aisé (plus de 120 %)</td></tr>
-          <tr><td>Population</td><td>nombre d’habitants au km²</td><td>peu dense (moins de 300), intermédiaire, dense (plus de 1 500)</td></tr>
-          <tr><td>Concurrence</td><td>fast-foods déjà installés à moins de 2 km : plus ils sont nombreux, grands et proches, plus la concurrence est forte</td><td>aucune, faible (1 à 5), modérée (6 à 20), forte (plus de 20)</td></tr>
+          <tr><td>Accès routier</td><td>distance à la route principale la plus proche</td><td>très bon (moins de 0,5 km), bon (0,5 à 1,5 km), moyen (1,5 à 3 km), faible (plus de 3 km)</td></tr>
+          <tr><td>Pouvoir d’achat</td><td>niveau de vie moyen des habitants (Insee)</td><td>faible (moins de 80 % de la médiane, 24 409 €), moyen, élevé (plus de 120 %)</td></tr>
+          <tr><td>Population</td><td>nombre d’habitants au km²</td><td>faible (moins de 300), moyenne, élevée (plus de 1 500)</td></tr>
+          <tr><td>Concurrence</td><td>fast-foods déjà installés à moins de 2 km : plus ils sont nombreux, grands et proches, plus la concurrence est forte</td><td>nulle, faible (1 à 5), moyenne (6 à 20), élevée (plus de 20)</td></tr>
         </tbody>
       </table>
+      <p>Les zones sans habitant (zones d’activités, zones commerciales…) n’ont pas de niveau de vie : l’étude leur attribue la valeur médiane, pour ne pas les pénaliser. Leur fiche l’indique, et le filtre « Pouvoir d’achat » ne les garde que sur « Tous ».</p>
     </section>
     <section><h3>4. Deux façons de lire la carte</h3>
       <p><strong>Analyse de référence.</strong> Le classement établi par l’étude, avec des poids fixes : accès routier 35 %, pouvoir d’achat 30 %, population 20 %, concurrence 15 %. C’est le résultat de référence.</p>
       <p><strong>Simulation.</strong> Vous réglez l’importance de chaque critère de 0 à 100. L’outil en déduit les poids et recalcule le classement et la carte. Un bandeau rappelle que vous êtes en simulation, et le bouton « Revenir à l’analyse de référence » rétablit le classement de l’étude.</p>
       <p>Exemple : si la concurrence vous importe le plus, mettez-la à 100 et les autres critères plus bas. Les zones sans concurrent remontent dans le classement.</p>
-      <p>Dans la fiche d’une zone, la simulation affiche les deux rangs. Une zone est dite <strong>robuste</strong> si son rang change peu (moins de 5 % du classement) : elle reste bien placée quelles que soient les priorités. Sinon, elle est <strong>sensible aux critères</strong>.</p>
+      <p>Dans la fiche d’une zone, la simulation affiche les deux rangs. Une zone est dite <strong>robuste</strong> si son rang change peu (moins de 5 % du classement) : son rang reste à peu près le même, quelles que soient les priorités. Sinon, elle est <strong>sensible aux critères</strong>.</p>
     </section>
     <section><h3>5. Les classes</h3>
       <table class="guide-table">
@@ -198,7 +213,7 @@
     <section><h3>7. Trouver de meilleures alternatives</h3><p>Depuis la fiche, indiquez le critère sur lequel la zone ne vous satisfait pas. L’outil cherche, à moins de 5 km, les zones qui font mieux sur ce critère sans faire moins bien sur les trois autres. Il en présente jusqu’à trois, côte à côte avec la zone de départ, avec leurs points forts et leurs points faibles. S’il n’en trouve aucune, la zone de départ est déjà un bon compromis.</p></section>
     <section><h3>8. Choisir un territoire et un profil</h3>
       <p><strong>Où ?</strong> Choisissez un département, ou cherchez une commune ou une adresse.</p>
-      <p><strong>Profil recherché.</strong> Pour chaque critère, indiquez le niveau minimum souhaité (par exemple : concurrence faible ou aucune). Les zones qui ne conviennent pas s’effacent de la carte et de la liste. Vous pouvez aussi masquer des classes.</p>
+      <p><strong>Profil recherché.</strong> Pour chaque critère, choisissez le niveau souhaité (par exemple : concurrence faible). Seules les zones de ce niveau restent sur la carte et dans la liste ; « Toutes » ne filtre pas le critère. Vous pouvez aussi masquer des classes.</p>
       <p><strong>Meilleures zones.</strong> La liste suit vos réglages. L’option « une seule zone par commune » évite que la liste ne montre que des zones voisines.</p>
     </section>
     <section><h3>9. Télécharger</h3><p>Par défaut, vous téléchargez votre sélection (réglages appliqués). Une option permet de télécharger toutes les zones. Deux formats : <strong>Tableau (Excel)</strong> et <strong>Données cartographiques</strong>. Une notice est jointe à chaque téléchargement : sources, date, mode (référence ou simulation) et réglages utilisés.</p></section>
