@@ -4,7 +4,8 @@
   'use strict';
 
   // ---------- Constantes ----------
-  var COLORS = ['#E3E2DD', '#FED976', '#FD8D3C', '#E31A1C', '#800026'];
+  // Palette ColorBrewer YlOrRd en 5 classes (de Peu favorable à Prioritaire)
+  var COLORS = ['#FFFFB2', '#FECC5C', '#FD8D3C', '#F03B20', '#BD0026'];
   var CLS = ['Peu favorable', 'Moyen', 'Favorable', 'Très favorable', 'Prioritaire'];
   var RANGES = ['50 à 100 %', '20 à 50 %', '5 à 20 %', '1 à 5 %', '1 % le mieux classé'];
   var VERDICT = [
